@@ -16,7 +16,7 @@ export default function AIChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: "ai",
-      content: "Welcome to TradeHive! I'm your AI trading assistant. How can I help you with trading today?",
+      content: "Welcome to TradeHive! It Works!! I'm your AI trading assistant. How can I help you with trading today?",
     },
   ])
   const [input, setInput] = useState("")
