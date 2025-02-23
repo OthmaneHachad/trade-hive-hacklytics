@@ -127,3 +127,29 @@
   transform: rotateY(180deg);
 }
 
+.markdown-container {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.markdown-container h1, .markdown-container h2, .markdown-container h3 {
+  color: #0070f3;
+}
+
+.markdown-container img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 5px;
+}
+
+.markdown-container a {
+  color: #0070f3;
+  text-decoration: none;
+}
+
+.markdown-container a:hover {
+  text-decoration: underline;
+}
+
+

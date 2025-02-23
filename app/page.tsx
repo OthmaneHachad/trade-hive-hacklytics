@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MessageCircle, Send } from "lucide-react"
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer"
 
 interface ChatMessage {
   role: "user" | "ai"
@@ -60,7 +61,7 @@ export default function AIChatPage() {
       console.log("response: " + response)
 
       const data = await response.json()
-      const aiMessage: ChatMessage = { role: "ai", content: "data:  " + data.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text }
+      const aiMessage: ChatMessage = { role: "ai", content: data.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text }
       setMessages((prev) => [...prev, aiMessage])
     } catch (error) {
       console.error("Error:", error)
@@ -86,10 +87,10 @@ export default function AIChatPage() {
                 <div
                   key={index}
                   className={`p-3 rounded-lg max-w-[80%] ${
-                    message.role === "ai" ? "bg-muted" : "bg-primary text-primary-foreground ml-auto"
+                    message.role === "ai" ? "bg-muted text-black" : "bg-white text-black border border-gray-300 ml-auto"
                   }`}
                 >
-                  <p className="text-sm">{message.content}</p>
+                  <MarkdownRenderer content={message.content} />
                 </div>
               ))}
             </div>
