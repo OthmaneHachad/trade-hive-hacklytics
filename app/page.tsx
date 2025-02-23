@@ -20,23 +20,53 @@ export default function AIChatPage() {
     },
   ])
   const [input, setInput] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = () => {
-    if (input.trim()) {
-      setMessages((prev) => [...prev, { role: "user", content: input }])
-      // Here you would typically call an API to get the AI's response
-      // For now, we'll just provide a generic response
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "ai",
-            content:
-              "Thank you for your message. I'm processing your request and will respond shortly with relevant trading information or advice.",
+  const handleSubmit = async () => {
+    if (!input.trim()) return
+
+    console.log("IN Handle Submit")
+
+    const userMessage: ChatMessage = { role: "user", content: input }
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setLoading(true)
+
+    try {
+      console.log("Starting querying...")
+      const response = await fetch(
+        "http://127.0.0.1:7860/api/v1/run/bc69e3e1-69c0-45d3-af61-2c765eb1f6a0?stream=false",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": "sk-QCJY5zaZEbIvIDkndnif-HGfnIxvxwGnJ-fMO4ir6zE", // Replace with actual API key
           },
-        ])
-      }, 500)
-      setInput("")
+          body: JSON.stringify({
+            input_value: input,
+            output_type: "chat",
+            input_type: "chat",
+            tweaks: {
+              "ChatOutput-TLU51": {},
+              "Prompt-goeG8": {},
+              "ChatInput-YJ2ru": {},
+              "Agent-EOh4V": {},
+              "TavilySearchComponent-RQpg1": {},
+            },
+          }),
+        }
+      )
+      
+      console.log("response: " + response)
+
+      const data = await response.json()
+      const aiMessage: ChatMessage = { role: "ai", content: "data:  " + data.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text }
+      setMessages((prev) => [...prev, aiMessage])
+    } catch (error) {
+      console.error("Error:", error)
+      setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }])
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -69,11 +99,12 @@ export default function AIChatPage() {
               placeholder="Ask about trading strategies, terms, or advice..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSubmit()}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               className="flex-grow"
+              disabled={loading}
             />
-            <Button onClick={handleSubmit} size="icon">
-              <Send className="h-4 w-4" />
+            <Button onClick={handleSubmit} size="icon" disabled={loading}>
+              {loading ? "..." : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>
@@ -81,4 +112,3 @@ export default function AIChatPage() {
     </div>
   )
 }
-
