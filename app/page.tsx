@@ -14,7 +14,16 @@ interface ChatMessage {
 }
 
 interface LangflowResponse {
-  outputs?: Array<{ outputs?: Array<{ outputs?: { message?: { text?: string } } }> }>;
+  outputs?: Array<{
+    outputs?: Array<{
+      results?: {
+        text?: {
+          text_key?: string;
+          data?: { text?: string };
+        };
+      };
+    }>;
+  }>;
 }
 
 class LangflowClient {
@@ -92,8 +101,9 @@ export default function AIChatPage() {
         "YahooFinanceTool-Idd2Y": {},
       };
       const response = await langflowClient.initiateSession(flowId, langflowId, input, "chat", "text", false, tweaks);
-      console.log(`Supposed response from Langflow: ${response}`)
-      const aiMessage = response.outputs?.[0]?.outputs?.[0]?.outputs?.message?.text || "I couldn't process your request.";
+      console.log("Supposed response from Langflow:", response);
+      
+      const aiMessage = response.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text || "I couldn't process your request.";
       setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
     } catch (error) {
       console.error("Error:", error);
@@ -102,7 +112,7 @@ export default function AIChatPage() {
       setLoading(false);
     }
   };
-
+  
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <Card className="h-[calc(100vh-8rem)]">
