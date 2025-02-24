@@ -83,12 +83,13 @@ export default function AIChatPage() {
     setMessages((prev) => [...prev, { role: "user", content: input }]);
     setInput("");
     setLoading(true);
-
+  
     try {
       const langflowClient = new LangflowClient(
         "https://api.langflow.astra.datastax.com",
         process.env.NEXT_PUBLIC_LANGFLOW_API_KEY as string
       );
+  
       const flowId = "2b5a68d0-a897-49f3-81b4-370801620635";
       const langflowId = "4d7b5477-24e6-43d5-a8e1-84333771db31";
       const tweaks: Record<string, object> = {
@@ -100,10 +101,17 @@ export default function AIChatPage() {
         "ChatInput-f19Xt": {},
         "YahooFinanceTool-Idd2Y": {},
       };
+  
       const response = await langflowClient.initiateSession(flowId, langflowId, input, "chat", "text", false, tweaks);
-      console.log("Supposed response from Langflow:", response);
       
-      const aiMessage = response.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text || "I couldn't process your request.";
+      console.log("Raw Response from Langflow:", response);
+  
+      // ✅ Correctly extract AI message
+      // response[0].outputs[0].results["text"].data["text"]
+      const aiMessage =
+      response?.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text || 
+        "I couldn't process your request.";
+  
       setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
     } catch (error) {
       console.error("Error:", error);
