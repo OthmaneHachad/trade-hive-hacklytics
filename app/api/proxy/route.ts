@@ -14,9 +14,13 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    if (!response.ok) {
+      return NextResponse.json({ error: `API request failed with status ${response.status}` }, { status: response.status });
+    }
+
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Proxy request failed" }, { status: 500 });
   }
 }

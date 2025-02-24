@@ -13,6 +13,10 @@ interface ChatMessage {
   content: string;
 }
 
+interface LangflowResponse {
+  outputs?: Array<{ outputs?: Array<{ outputs?: { message?: { text?: string } } }> }>;
+}
+
 class LangflowClient {
   private baseURL: string;
   private applicationToken: string;
@@ -51,10 +55,10 @@ class LangflowClient {
     inputType: string = "chat",
     outputType: string = "text",
     stream: boolean = false,
-    tweaks: object = {}
-  ): Promise<any> {
+    tweaks: Record<string, object> = {}
+  ): Promise<LangflowResponse> {
     const endpoint = `/lf/${langflowId}/api/v1/run/${flowId}?stream=${stream}`;
-    return this.post(endpoint, { input_value: inputValue, input_type: inputType, output_type: outputType, tweaks: tweaks });
+    return this.post<LangflowResponse>(endpoint, { input_value: inputValue, input_type: inputType, output_type: outputType, tweaks: tweaks });
   }
 }
 
@@ -78,7 +82,7 @@ export default function AIChatPage() {
       );
       const flowId = "2b5a68d0-a897-49f3-81b4-370801620635";
       const langflowId = "4d7b5477-24e6-43d5-a8e1-84333771db31";
-      const tweaks = {
+      const tweaks: Record<string, object> = {
         "Prompt-PuBjq": {},
         "Agent-FiITz": {},
         "TavilySearchComponent-oesoS": {},
