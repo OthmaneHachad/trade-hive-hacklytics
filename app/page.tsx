@@ -92,6 +92,7 @@ export default function AIChatPage() {
         "YahooFinanceTool-Idd2Y": {},
       };
       const response = await langflowClient.initiateSession(flowId, langflowId, input, "chat", "text", false, tweaks);
+      console.log(`Supposed response from Langflow: {response.outputs?.[0]?.outputs?.[0]?.outputs?.message?.text}`)
       const aiMessage = response.outputs?.[0]?.outputs?.[0]?.outputs?.message?.text || "I couldn't process your request.";
       setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
     } catch (error) {
