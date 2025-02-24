@@ -1,75 +1,102 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { MessageCircle, Send } from "lucide-react"
-import MarkdownRenderer from "@/components/ui/MarkdownRenderer"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageCircle, Send } from "lucide-react";
+import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 
 interface ChatMessage {
-  role: "user" | "ai"
-  content: string
+  role: "user" | "ai";
+  content: string;
+}
+
+class LangflowClient {
+  private baseURL: string;
+  private applicationToken: string;
+
+  constructor(baseURL: string, applicationToken: string) {
+    this.baseURL = baseURL;
+    this.applicationToken = applicationToken;
+  }
+
+  async post<T>(endpoint: string, body: object, headers: Record<string, string> = { "Content-Type": "application/json" }): Promise<T> {
+    headers["Authorization"] = `Bearer ${this.applicationToken}`;
+    headers["Content-Type"] = "application/json";
+    
+    const url = "/api/proxy"; // Use relative URL to call the Vercel proxy
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(body),
+      });
+      const responseMessage: T = await response.json();
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText} - ${JSON.stringify(responseMessage)}`);
+      }
+      return responseMessage;
+    } catch (error) {
+      console.error("Request Error:", error);
+      throw error;
+    }
+  }
+
+  async initiateSession(
+    flowId: string,
+    langflowId: string,
+    inputValue: string,
+    inputType: string = "chat",
+    outputType: string = "text",
+    stream: boolean = false,
+    tweaks: object = {}
+  ): Promise<any> {
+    const endpoint = `/lf/${langflowId}/api/v1/run/${flowId}?stream=${stream}`;
+    return this.post(endpoint, { input_value: inputValue, input_type: inputType, output_type: outputType, tweaks: tweaks });
+  }
 }
 
 export default function AIChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "ai",
-      content: "Welcome to TradeHive! It Works!! I'm your AI trading assistant. How can I help you with trading today?",
-    },
-  ])
-  const [input, setInput] = useState("")
-  const [loading, setLoading] = useState(false)
+    { role: "ai", content: "Welcome to TradeHive! It Works!! I'm your AI trading assistant. How can I help you with trading today?" },
+  ]);
+  const [input, setInput] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const handleSubmit = async () => {
-    if (!input.trim()) return
-
-    console.log("IN Handle Submit")
-
-    const userMessage: ChatMessage = { role: "user", content: input }
-    setMessages((prev) => [...prev, userMessage])
-    setInput("")
-    setLoading(true)
+  const handleSubmit = async (): Promise<void> => {
+    if (!input.trim()) return;
+    setMessages((prev) => [...prev, { role: "user", content: input }]);
+    setInput("");
+    setLoading(true);
 
     try {
-      console.log("Starting querying...")
-      const response = await fetch(
-        "http://127.0.0.1:7860/api/v1/run/bc69e3e1-69c0-45d3-af61-2c765eb1f6a0?stream=false",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": "sk-QCJY5zaZEbIvIDkndnif-HGfnIxvxwGnJ-fMO4ir6zE", // Replace with actual API key
-          },
-          body: JSON.stringify({
-            input_value: input,
-            output_type: "chat",
-            input_type: "chat",
-            tweaks: {
-              "ChatOutput-TLU51": {},
-              "Prompt-goeG8": {},
-              "ChatInput-YJ2ru": {},
-              "Agent-EOh4V": {},
-              "TavilySearchComponent-RQpg1": {},
-            },
-          }),
-        }
-      )
-      
-      console.log("response: " + response)
-
-      const data = await response.json()
-      const aiMessage: ChatMessage = { role: "ai", content: data.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text }
-      setMessages((prev) => [...prev, aiMessage])
+      const langflowClient = new LangflowClient(
+        "https://api.langflow.astra.datastax.com",
+        process.env.NEXT_PUBLIC_LANGFLOW_API_KEY as string
+      );
+      const flowId = "2b5a68d0-a897-49f3-81b4-370801620635";
+      const langflowId = "4d7b5477-24e6-43d5-a8e1-84333771db31";
+      const tweaks = {
+        "Prompt-PuBjq": {},
+        "Agent-FiITz": {},
+        "TavilySearchComponent-oesoS": {},
+        "CalculatorComponent-FzyCw": {},
+        "TextOutput-NJvOe": {},
+        "ChatInput-f19Xt": {},
+        "YahooFinanceTool-Idd2Y": {},
+      };
+      const response = await langflowClient.initiateSession(flowId, langflowId, input, "chat", "text", false, tweaks);
+      const aiMessage = response.outputs?.[0]?.outputs?.[0]?.outputs?.message?.text || "I couldn't process your request.";
+      setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
     } catch (error) {
-      console.error("Error:", error)
-      setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }])
+      console.error("Error:", error);
+      setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -84,12 +111,7 @@ export default function AIChatPage() {
           <ScrollArea className="flex-grow mb-4 p-4 border rounded-md">
             <div className="space-y-4">
               {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg max-w-[80%] ${
-                    message.role === "ai" ? "bg-muted text-black" : "bg-white text-black border border-gray-300 ml-auto"
-                  }`}
-                >
+                <div key={index} className={`p-3 rounded-lg max-w-[80%] ${message.role === "ai" ? "bg-muted text-black" : "bg-white text-black border border-gray-300 ml-auto"}`}>
                   <MarkdownRenderer content={message.content} />
                 </div>
               ))}
@@ -111,5 +133,5 @@ export default function AIChatPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
