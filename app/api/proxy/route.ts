@@ -1,46 +1,41 @@
 import { NextRequest } from "next/server";
 
-export const runtime = "edge"
-
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const sessionId = searchParams.get("session_id");
-
-  if (!sessionId) {
-    console.error("❌ Missing session_id in GET request");
-    return new Response(JSON.stringify({ error: "Missing session ID" }), { status: 400 });
-  }
-
+export async function POST(req: NextRequest) {
   try {
-    const streamUrl = `https://api.langflow.astra.datastax.com/lf/${sessionId}/stream`;
-    console.log("🔵 Connecting to Langflow SSE:", streamUrl);
+    const body = await req.json();
+    const API_URL = "https://api.langflow.astra.datastax.com/lf/4d7b5477-24e6-43d5-a8e1-84333771db31/api/v1/run/2b5a68d0-a897-49f3-81b4-370801620635?stream=false";
 
-    const response = await fetch(streamUrl, {
-      method: "GET",
+    console.log("🔵 Forwarding request to Langflow API:", API_URL);
+
+    const response = await fetch(API_URL, {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.LANGFLOW_API_KEY}`,
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        Accept: "text/event-stream",
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(body),
     });
 
-    if (!response.body) {
-      console.error("❌ No response body received from Langflow");
-      return new Response(JSON.stringify({ error: "No stream available" }), { status: 500 });
+    if (!response.ok) {
+      console.error("❌ Langflow API Error:", response.statusText);
+      return new Response(JSON.stringify({ error: "Langflow request failed", status: response.status }), {
+        status: response.status,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    // ✅ Return the raw SSE response from Langflow
-    return new Response(response.body, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
+    const data = await response.json();
+    console.log("✅ Langflow Response:", data);
+
+    return new Response(JSON.stringify(data), {
+      status: response.status,
+      headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("❌ Error in Edge Function:", error);
-    return new Response(JSON.stringify({ error: "Streaming failed" }), { status: 500 });
+    console.error("❌ Proxy Request Error:", error);
+    return new Response(JSON.stringify({ error: "Proxy request failed", details: (error as Error).message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
