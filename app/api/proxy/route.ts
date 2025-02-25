@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 const LANGFLOW_URL = "https://api.langflow.astra.datastax.com/lf/4d7b5477-24e6-43d5-a8e1-84333771db31/api/v1/run/2b5a68d0-a897-49f3-81b4-370801620635";
 
-// ✅ Step 1: Send User Prompt & Get `session_id`
+// ✅ STEP 1: Send User Input & Retrieve `session_id`
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log("🔵 Sending request to Langflow with body:", body);
+    console.log("🔵 Sending request to Langflow:", body);
 
     const response = await fetch(`${LANGFLOW_URL}?stream=true`, {
       method: "POST",
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// ✅ Step 2: Stream AI Response (GET request)
+// ✅ STEP 2: Stream AI Response (SSE)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
