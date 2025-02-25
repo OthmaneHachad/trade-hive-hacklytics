@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 const LANGFLOW_URL = "https://api.langflow.astra.datastax.com/lf/4d7b5477-24e6-43d5-a8e1-84333771db31/api/v1/run/2b5a68d0-a897-49f3-81b4-370801620635";
 
+// ✅ Step 1: Send User Prompt & Get `session_id`
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json(); // Get user input
+    const body = await req.json();
+    console.log("🔵 Sending request to Langflow with body:", body);
+
     const response = await fetch(`${LANGFLOW_URL}?stream=true`, {
       method: "POST",
       headers: {
@@ -14,47 +17,53 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    // If Langflow starts streaming, return the session ID
-    if (response.ok) {
-      const data = await response.json();
-      return NextResponse.json({ session_id: data.session_id }, { status: 200 });
-    } else {
-      return NextResponse.json({ error: "Failed to initiate Langflow session" }, { status: response.status });
+    if (!response.ok) {
+      console.error("❌ Langflow API Error:", await response.text());
+      return NextResponse.json({ error: "Langflow request failed" }, { status: response.status });
     }
+
+    const data = await response.json();
+    console.log("✅ Received session_id:", data.session_id);
+    return NextResponse.json({ session_id: data.session_id }, { status: 200 });
   } catch (error) {
-    console.error("Error sending request to Langflow:", error);
+    console.error("❌ Error in POST:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
-// GET request for streaming response
+// ✅ Step 2: Stream AI Response (GET request)
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const sessionId = searchParams.get("session_id");
 
   if (!sessionId) {
+    console.error("❌ Missing session_id in GET request");
     return NextResponse.json({ error: "Missing session ID" }, { status: 400 });
   }
 
   try {
     const streamUrl = `${LANGFLOW_URL}/${sessionId}/stream`;
+    console.log("🔵 Connecting to stream:", streamUrl);
+
     const response = await fetch(streamUrl, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${process.env.LANGFLOW_API_KEY}`,
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        Accept: "text/event-stream",
       },
     });
 
     if (!response.body) {
-      return NextResponse.json({ error: "No response body received" }, { status: 500 });
+      console.error("❌ No response body received from Langflow");
+      return NextResponse.json({ error: "No stream available" }, { status: 500 });
     }
 
+    // ✅ Use ReadableStream to handle streaming properly
     const readableStream = new ReadableStream({
       async start(controller) {
-        const reader = response.body?.getReader();
-        if (!reader) {
-          controller.close();
-          return;
-        }
+        const reader = response.body!.getReader();
 
         try {
           while (true) {
@@ -63,14 +72,14 @@ export async function GET(req: NextRequest) {
             controller.enqueue(value);
           }
         } catch (error) {
-          console.error("Streaming Error:", error);
+          console.error("❌ Streaming Error:", error);
         } finally {
           controller.close();
         }
       },
     });
 
-    return new NextResponse(readableStream, {
+    return new Response(readableStream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
@@ -78,7 +87,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error in streaming response:", error);
-    return NextResponse.json({ error: "Failed to fetch streamed response" }, { status: 500 });
+    console.error("❌ Error in GET:", error);
+    return NextResponse.json({ error: "Streaming failed" }, { status: 500 });
   }
 }

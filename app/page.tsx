@@ -27,7 +27,7 @@ export default function AIChatPage() {
     setLoading(true);
 
     try {
-      // Step 1: Send user input to Langflow
+      console.log("🔵 Sending user input...");
       const response = await fetch("/api/proxy", {
         method: "POST",
         headers: {
@@ -35,16 +35,19 @@ export default function AIChatPage() {
         },
         body: JSON.stringify({
           input_value: input,
-          output_type: "text",
+          output_type: "chat",
           input_type: "chat",
           tweaks: {},
         }),
       });
 
       const data = await response.json();
-      if (!data.session_id) throw new Error("Failed to get session_id");
+      if (!data.session_id) throw new Error("❌ Failed to get session_id");
 
-      // Step 2: Stream response from Langflow
+      console.log("✅ Received session_id:", data.session_id);
+      console.log("🔵 Connecting to SSE...");
+
+      // Step 2: Connect to SSE Stream
       const eventSource = new EventSource(`/api/proxy?session_id=${data.session_id}`);
 
       let aiResponse = "";
@@ -62,18 +65,20 @@ export default function AIChatPage() {
         });
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (error) => {
+        console.error("❌ SSE Connection Error:", error);
         eventSource.close();
         setLoading(false);
-        console.error("Error in streaming response");
+        setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }]);
       };
 
       eventSource.addEventListener("close", () => {
+        console.log("✅ SSE Connection Closed");
         eventSource.close();
         setLoading(false);
       });
     } catch (error) {
-      console.error("Error:", error);
+      console.error("❌ Error:", error);
       setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }]);
     }
   };
