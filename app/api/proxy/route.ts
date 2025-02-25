@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
 
   try {
     // Set up a timeout mechanism (abort after 9s)
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
+    // const controller = new AbortController();
+    // const timeout = setTimeout(() => controller.abort(), 9000);
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-      signal: controller.signal, // Attach timeout signal
+    //   signal: controller.signal, // Attach timeout signal
     });
 
-    clearTimeout(timeout); // Clear timeout if request succeeds
+    // clearTimeout(timeout); // Clear timeout if request succeeds
 
     // Log response headers for debugging
     console.log("Response Headers:", response.headers);
