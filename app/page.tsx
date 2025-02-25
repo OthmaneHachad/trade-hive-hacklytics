@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, Send } from "lucide-react";
+import { MessageCircle, Send, Loader2 } from "lucide-react";
 import MarkdownRenderer from "@/components/ui/MarkdownRenderer";
 
 // Chat message interface
@@ -20,7 +20,6 @@ interface LangflowResponse {
     outputs?: Array<{
       results?: {
         text?: {
-          text_key?: string;
           data?: { text?: string };
         };
       };
@@ -31,23 +30,16 @@ interface LangflowResponse {
 // LangflowClient class to handle API requests
 class LangflowClient {
   private baseURL: string;
-  private applicationToken: string;
 
-  constructor(baseURL: string, applicationToken: string) {
-    this.baseURL = baseURL;
-    this.applicationToken = applicationToken;
+  constructor() {
+    this.baseURL = "/api/proxy"; // Calls Vercel serverless proxy
   }
 
   async post<T>(body: object): Promise<T> {
-    const url = "/api/proxy"; // Calls Vercel serverless proxy
-    console.log("🔵 Sending request to Vercel Proxy:", url, body);
-
     try {
-      const response = await fetch(url, {
+      const response = await fetch(this.baseURL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
 
@@ -55,9 +47,7 @@ class LangflowClient {
         throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
 
-      const responseMessage: T = await response.json();
-      console.log("✅ Proxy Response:", responseMessage);
-      return responseMessage;
+      return await response.json();
     } catch (error) {
       console.error("❌ Proxy Request Error:", error);
       throw error;
@@ -81,10 +71,9 @@ class LangflowClient {
   }
 }
 
-// AI Chat Page Component
 export default function AIChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "ai", content: "Welcome to TradeHive! It Works!! I'm your AI trading assistant. How can I help you with trading today?" },
+    { role: "ai", content: "Welcome to TradeHive! I'm your AI trading assistant. How can I help you today?" },
   ]);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -94,13 +83,9 @@ export default function AIChatPage() {
     setMessages((prev) => [...prev, { role: "user", content: input }]);
     setInput("");
     setLoading(true);
-  
+
     try {
-      const langflowClient = new LangflowClient(
-        "https://api.langflow.astra.datastax.com",
-        process.env.NEXT_PUBLIC_LANGFLOW_API_KEY as string
-      );
-  
+      const langflowClient = new LangflowClient();
       const flowId = "2b5a68d0-a897-49f3-81b4-370801620635";
       const langflowId = "4d7b5477-24e6-43d5-a8e1-84333771db31";
       const tweaks: Record<string, object> = {
@@ -112,17 +97,17 @@ export default function AIChatPage() {
         "ChatInput-f19Xt": {},
         "YahooFinanceTool-Idd2Y": {},
       };
-  
+
       console.log("🔵 Sending user input...");
       const response = await langflowClient.initiateSession(flowId, langflowId, input, "chat", "text", tweaks);
-      
-      console.log("✅ Received Response from Langflow:", response);
-  
-      // Extract the AI-generated message
+
+      console.log("✅ Received Response from Langflow");
+
+      // Extract AI response message
       const aiMessage =
         response.outputs?.[0]?.outputs?.[0]?.results?.text?.data?.text ||
         "I couldn't process your request.";
-  
+
       setMessages((prev) => [...prev, { role: "ai", content: aiMessage }]);
     } catch (error) {
       console.error("❌ Error:", error);
@@ -149,6 +134,11 @@ export default function AIChatPage() {
                   <MarkdownRenderer content={message.content} />
                 </div>
               ))}
+              {loading && (
+                <div className="p-3 rounded-lg max-w-[80%] bg-muted text-black">
+                  <Loader2 className="animate-spin h-5 w-5" />
+                </div>
+              )}
             </div>
           </ScrollArea>
           <div className="flex items-center space-x-2">
@@ -161,7 +151,7 @@ export default function AIChatPage() {
               disabled={loading}
             />
             <Button onClick={handleSubmit} size="icon" disabled={loading}>
-              {loading ? "..." : <Send className="h-4 w-4" />}
+              {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
         </CardContent>
