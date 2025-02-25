@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(req: NextRequest) {
-  const body: Record<string, unknown> = await req.json();
-  const API_URL = "https://api.langflow.astra.datastax.com/lf/4d7b5477-24e6-43d5-a8e1-84333771db31/api/v1/run/2b5a68d0-a897-49f3-81b4-370801620635?stream=true";
+const LANGFLOW_URL = "https://api.langflow.astra.datastax.com/lf/4d7b5477-24e6-43d5-a8e1-84333771db31/api/v1/run/2b5a68d0-a897-49f3-81b4-370801620635";
 
+export async function POST(req: NextRequest) {
   try {
-    const response = await fetch(API_URL, {
+    const body = await req.json(); // Get user input
+    const response = await fetch(`${LANGFLOW_URL}?stream=true`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.LANGFLOW_API_KEY}`,
@@ -14,11 +14,40 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
+    // If Langflow starts streaming, return the session ID
+    if (response.ok) {
+      const data = await response.json();
+      return NextResponse.json({ session_id: data.session_id }, { status: 200 });
+    } else {
+      return NextResponse.json({ error: "Failed to initiate Langflow session" }, { status: response.status });
+    }
+  } catch (error) {
+    console.error("Error sending request to Langflow:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+// GET request for streaming response
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const sessionId = searchParams.get("session_id");
+
+  if (!sessionId) {
+    return NextResponse.json({ error: "Missing session ID" }, { status: 400 });
+  }
+
+  try {
+    const streamUrl = `${LANGFLOW_URL}/${sessionId}/stream`;
+    const response = await fetch(streamUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.LANGFLOW_API_KEY}`,
+      },
+    });
+
     if (!response.body) {
       return NextResponse.json({ error: "No response body received" }, { status: 500 });
     }
 
-    // Stream the response to the client
     const readableStream = new ReadableStream({
       async start(controller) {
         const reader = response.body?.getReader();
@@ -49,7 +78,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error in Proxy:", error);
-    return NextResponse.json({ error: "Proxy request failed" }, { status: 500 });
+    console.error("Error in streaming response:", error);
+    return NextResponse.json({ error: "Failed to fetch streamed response" }, { status: 500 });
   }
 }

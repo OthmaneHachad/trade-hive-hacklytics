@@ -15,7 +15,7 @@ interface ChatMessage {
 
 export default function AIChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "ai", content: "Welcome to TradeHive! Streamed responses!! I'm your AI trading assistant. How can I help you with trading today?" },
+    { role: "ai", content: "Welcome to TradeHive! I'm your AI trading assistant. How can I help you?" },
   ]);
   const [input, setInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -27,7 +27,25 @@ export default function AIChatPage() {
     setLoading(true);
 
     try {
-      const eventSource = new EventSource("/api/proxy");
+      // Step 1: Send user input to Langflow
+      const response = await fetch("/api/proxy", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          input_value: input,
+          output_type: "text",
+          input_type: "chat",
+          tweaks: {},
+        }),
+      });
+
+      const data = await response.json();
+      if (!data.session_id) throw new Error("Failed to get session_id");
+
+      // Step 2: Stream response from Langflow
+      const eventSource = new EventSource(`/api/proxy?session_id=${data.session_id}`);
 
       let aiResponse = "";
 
@@ -80,14 +98,7 @@ export default function AIChatPage() {
             </div>
           </ScrollArea>
           <div className="flex items-center space-x-2">
-            <Input
-              placeholder="Ask about trading strategies, terms, or advice..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              className="flex-grow"
-              disabled={loading}
-            />
+            <Input placeholder="Ask about trading..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} className="flex-grow" disabled={loading} />
             <Button onClick={handleSubmit} size="icon" disabled={loading}>
               {loading ? "..." : <Send className="h-4 w-4" />}
             </Button>
