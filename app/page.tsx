@@ -25,14 +25,12 @@ export default function AIChatPage() {
     setMessages((prev) => [...prev, { role: "user", content: input }]);
     setInput("");
     setLoading(true);
-
+  
     try {
       console.log("🔵 Sending user input...");
       const response = await fetch("/api/proxy", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input_value: input,
           output_type: "chat",
@@ -40,18 +38,18 @@ export default function AIChatPage() {
           tweaks: {},
         }),
       });
-
+  
       const data = await response.json();
       if (!data.session_id) throw new Error("❌ Failed to get session_id");
-
+  
       console.log("✅ Received session_id:", data.session_id);
       console.log("🔵 Connecting to SSE...");
-
-      // Step 2: Connect to SSE Stream
+  
+      // 🔥 Connect to Vercel Edge Function for streaming
       const eventSource = new EventSource(`/api/proxy?session_id=${data.session_id}`);
-
+  
       let aiResponse = "";
-
+  
       eventSource.onmessage = (event) => {
         aiResponse += event.data;
         setMessages((prev) => {
@@ -64,14 +62,14 @@ export default function AIChatPage() {
           return [...updatedMessages];
         });
       };
-
+  
       eventSource.onerror = (error) => {
         console.error("❌ SSE Connection Error:", error);
         eventSource.close();
         setLoading(false);
         setMessages((prev) => [...prev, { role: "ai", content: "Error fetching AI response." }]);
       };
-
+  
       eventSource.addEventListener("close", () => {
         console.log("✅ SSE Connection Closed");
         eventSource.close();
